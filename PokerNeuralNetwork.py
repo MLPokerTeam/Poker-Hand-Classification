@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 @author: Thando Peter 1908664@students.wits.ac.za
-@author: 
+@author: Tieho Ramphore 1908649@students.wits.ac.za
 @author: 
 """
 
@@ -109,43 +109,78 @@ Number of Attributes: 10 predictive attributes, 1 goal attribute
 
 10. Statistics
 
-      Poker Hand       # of hands	Probability	# of combinations
-      Royal Flush      4		0.00000154	480
-      Straight Flush   36		0.00001385	4320
-      Four of a kind   624		0.0002401	74880
-      Full house       3744		0.00144058	449280
-      Flush            5108		0.0019654	612960
-      Straight         10200		0.00392464	1224000
-      Three of a kind  54912		0.02112845	6589440
-      Two pairs        123552		0.04753902	14826240
-      One pair         1098240	0.42256903	131788800
-      Nothing          1302540	0.50117739	156304800
+      Poker Hand       # of hands	Probability	    # of combinations
+      Royal Flush      4		    0.00000154	    480
+      Straight Flush   36		    0.00001385	    4320
+      Four of a kind   624		    0.0002401	    74880
+      Full house       3744		    0.00144058	    449280
+      Flush            5108		    0.0019654	    612960
+      Straight         10200		0.00392464	    1224000
+      Three of a kind  54912		0.02112845	    6589440
+      Two pairs        123552		0.04753902	    14826240
+      One pair         1098240	    0.42256903	    131788800
+      Nothing          1302540	    0.50117739	    156304800
 
-      Total            2598960	1.0		311875200
+      Total            2598960	    1.0             311875200
 
       The number of combinations represents the number of instances in the entire domain.
 """
 
 import numpy as np
+import math
+import re #regex import that allows string splitting via multiple delimeters to get rid of \n
 """
 We need to load in the data from the .data files.
-We have three files:
+We have two files:
 
 1. poker-hand-testing.data
 2. poker-hand-training-true.data
 """
+#reading in training data
+trainingData = open('poker-hand-training-true.data', 'r')
+trainingString = trainingData.read()
+fullTrainingData = np.array(re.split(',|\n', trainingString))[:-1].astype(np.int64).reshape(25010, 11)
+print("The training set has ", fullTrainingData.shape[0], "data points with ", fullTrainingData.shape[1], "attributes")
+
 
 """
 Split the training data into validation and blind testing (500 000 each)
-"""
 
+"""
+#reading in testing data
+testingData = open('poker-hand-testing.data', 'r')
+testingString = testingData.read()
+fullTestingData = np.array(re.split(',|\n', testingString))[:-1].astype(np.int64).reshape(1000000, 11)
+print("The testing set has ", fullTestingData.shape[0], "data points with ", fullTestingData.shape[1], "attributes")
+
+#Splitting up into validation and blind testing data
+splitValData = fullTestingData[:500000]
+splitTestData = fullTestingData[500000:]
+print("The validation set has ", splitValData.shape[0], "data points with ", splitValData.shape[1], "attributes")
+print("The blind testing set has ", splitTestData.shape[0], "data points with ", splitTestData.shape[1], "attributes")
 """
 Cut the split validation and blind data into a workable chunk
 
-Take 5% of each array and use it to code. This will make sure that testing
+Take 10% of each array and use it to code. This will make sure that testing
  code is fast and ease the coding process. The full data-set will be used in the final training.
  
  It would be best if you just deleted data from the above arrays, so that later we can just 
  comment out this section of the code to have the full dataset.
 
 """
+#Getting workable data sizes (10%)
+splitValData = splitValData[:50000]
+splitTestData = splitTestData[:50000]
+
+#Splitting attributes from results
+trainAtt = fullTrainingData[:, :10]
+trainRes = fullTrainingData[:, 10:]
+valAtt = splitValData[:, :10]
+valRes = splitValData[:, 10:]
+testAtt = splitTestData[:, :10]
+testRes = splitTestData[:, 10:]
+print("The training attribute set has ", trainAtt.shape[0], "data points with ", trainAtt.shape[1], "attributes")
+print("The training result set has ", trainRes.shape[0], "data points with ", trainRes.shape[1], "attribute")
+
+#TODO: make a neural network tree
+#TODO: make a confusion matrix
