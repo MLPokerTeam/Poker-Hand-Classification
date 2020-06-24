@@ -183,4 +183,75 @@ print("The training attribute set has ", trainAtt.shape[0], "data points with ",
 print("The training result set has ", trainRes.shape[0], "data points with ", trainRes.shape[1], "attribute")
 
 #TODO: make a decision tree
+#format data entry to needed attributes
+def areConsec(arrRank):
+    arrRank = np.sort(arrRank)
+    isConsec = True
+    print("they're consecutive")
+    for i in range (len(arrRank)-1): #if the difference is greater than 1 then they are not consecutive
+        a = arrRank[i]
+        b = arrRank[i+1]
+        if b - a != 1 and b-a < 9:
+            isConsec = False
+            print("turns out they are not")
+            break
+    return isConsec
+
+
+def areRoyal(arrRank):
+    isRoyal = True
+    print("they're all royal")
+    for i in arrRank:
+        if i == 1: #the ace can be both royal and non-royal, so its existence should not decide if set is royal
+            continue
+        if i < 10: #anything below 10 is non-royal making the set as a whole non-royal
+            isRoyal = False
+            print("oh wait, they're not")
+            break
+    return isRoyal
+
+
+def areDuplicate(arrRank):
+    duos = 0
+    fTrio = False
+    fDuo = False
+    fDuoDuo = False
+    for i in arrRank:
+        if np.sum(arrRank == i) == 3:
+            fTrio = True
+        elif (np.sum(arrRank == i) == 2):
+            duos -=- 1
+    if duos == 2: #if there is more than one pair then the dual duo is prioritised
+        fDuoDuo = True
+        fDuo = True
+    elif duos == 1:
+        fDuo = True
+    print("trio: ", fTrio)
+    print("single pair:", fDuo)
+    print("two pairs: ", fDuoDuo)
+    return (fTrio, fDuo, fDuoDuo)
+
+
+def areSuited(arrSuit):
+    print("same suit:",len(np.unique(arrSuit)) == 1)
+    return len(np.unique(arrSuit)) == 1
+
+
+def attributeFix(entry):
+    arrAtt = np.empty([0,0])
+    arrRank = entry[1::2]
+    arrSuit = entry[::2]
+    #if cards are consecutive
+    arrAtt = np.append(arrAtt, areConsec(arrRank))
+    #if cards royal
+    arrAtt = np.append(arrAtt, areRoyal(arrRank))
+    #if cards are trio, double duo, or single duo
+    arrAtt = np.append(arrAtt, areDuplicate(arrRank))
+    #if cards are same suit
+    arrAtt = np.append(arrAtt, areSuited(arrSuit))
+    return arrAtt
+
+
+arrPractice = np.array([2,13,2,1,4,4,1,5,2,11])
+print(attributeFix(arrPractice))
 #TODO: make a confusion matrix
