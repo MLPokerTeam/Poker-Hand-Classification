@@ -183,6 +183,10 @@ testRes = splitTestData[:, 10:]
 print("The training attribute set has ", trainAtt.shape[0], "data points with ", trainAtt.shape[1], "attributes")
 print("The training result set has ", trainRes.shape[0], "data points with ", trainRes.shape[1], "attribute")
 
+# Seperates the the suit input and the rank input
+# Since the suit only influences 3 out of the 10 possible hands and the occurances
+# it influences dim in comparison to the occurances only influenced by the rank
+# the occurances influenced by the suit become outliers.
 def getRankAndSuit(arr):
     arr2 = arr.T
     Rank = []
@@ -194,6 +198,9 @@ def getRankAndSuit(arr):
             Rank.append(arr2[i])
     return np.array(Rank).T,np.array(Suit).T
 
+# Returns input and result arrays with evenly distributed variations.
+# The number of entries of each variation is dependent on the variation with
+# the smallest occurances.
 def Level_data(a,b):
     limit = 5
     limitArr = [0,0,0,0,0,0,0,0,0,0]
@@ -214,62 +221,88 @@ def Level_data(a,b):
 
 class NeuralNetwork(object):
     def __init__(self, x, y, shape):
+        
+        self.shape = shape
+        
+        # Turns all the values into a percentage based on the max number in 
+        # each list
         self.Xm = np.amax(x,axis=0)
         self.Ym = np.amax(y,axis=0)
         self.X = x/self.Xm
         self.Y = y/self.Ym
         
+        # The number of hidden layers in the neural network
         self.HiddenLayers = len(shape) - 1 
+        
         # Weights
         self.Weights = []
         for i in range(self.HiddenLayers):
             self.Weights.append(np.random.randn(shape[i], shape[i+1]))
         
     def feedForward(self):
+        # Moves the initial values through the nueral network and sets the values
+        # of the final layer
         self.z = []
         for i in range(self.HiddenLayers):
             if(i==0):
+                # Calculates the activation function of the first hidden layer
+                # from the input
                 self.z.append(self.sigmoid(np.dot(self.X, self.Weights[i])))
             else:
+                # Calculates the activation function of next hidden layer
+                # from the previous layer's activation function
                 self.z.append(self.sigmoid(np.dot(self.z[i-1], self.Weights[i])))
         return self.z[len(self.z)-1]
         
     def sigmoid(self, s, deriv = False):
         if(deriv == True):
-            return s*(1-s)
+            return s*(1-s) # Returns the derivative of the sigmoid function
         return 1/(1+np.exp(-s))
     
-    def backward(self):
+    def backward(self,LearningRate):
         self.error = []
         self.delta = []
         for i in range(self.HiddenLayers):
             if(i==0):
+                # Subtracts the calculated final result from the intended result
+                # to get the error
                 self.error.append(self.Y - self.z[self.HiddenLayers-i-1])
             else:
-                self.error.append( self.delta[i-1].dot(self.Weights[self.HiddenLayers-i].T))    
+                # Calculates how much the layer weights of our hidden layers 
+                # contribute to the output error
+                self.error.append( self.delta[i-1].dot(self.Weights[self.HiddenLayers-i].T))
+                
+            # Applying the derivative of the sigmoid function to the error
             self.delta.append(self.error[i] * self.sigmoid(self.z[self.HiddenLayers-i-1], deriv = True))
         
+        # After calculating the errors for all the weights in all the layers we
+        # adjust the weights to reduce the error
         for i in range(self.HiddenLayers):
             if(i==0):
-                self.Weights[i] += self.X.T.dot(self.delta[self.HiddenLayers-i-1])
+                # Input layer to the hidden layer
+                self.Weights[i] += LearningRate * self.X.T.dot(self.delta[self.HiddenLayers-i-1])
             else:
-                self.Weights[i] += self.z[i-1].T.dot(self.delta[self.HiddenLayers-i-1])
+                # Hidden layer to next layer (Hidden/Output layer)
+                self.Weights[i] += LearningRate * self.z[i-1].T.dot(self.delta[self.HiddenLayers-i-1])
         
-    def train(self,loops):
+    def train(self,loops, learningRate):
         p = 0
         for i in range(loops):
             if(round(i*100/loops)!=p):
                 p = round(i*100/loops)
                 print(p,"%")
             out = self.feedForward()
-            self.backward()
+            self.backward(learningRate)
     
+    # Returns Input Data Results
     def getYArray(self):
         return self.Y*self.Ym
     
+    # Returns Input Data Input
     def getXArray(self):
         return self.X*self.Xm
     
+    # Returns the result after the input data is processed through the network
     def getNetworkYArray(self):
         return self.feedForward()*self.Ym
     
@@ -295,13 +328,39 @@ class NeuralNetwork(object):
     def printError(self):
        arrDiff = self.getYArray() - self.getNetworkYArray()
        print("Loss: ",np.mean(np.square(arrDiff)),'\n')
+       
+    def printConfusionMatrix(self):
+        confusion = []
+        YArray = self.getYArray()
+        for i in range(int(np.max(YArray))+1):
+            confusion.append(np.zeros(int(np.max(YArray))+1))
+        
+        YNetwork = self.getNetworkYArray()
+        Correct = 0
+        Wrong = 0
+        for i in range(len(YArray)):
+            confusion[int(round(YArray[i][0]))][int(round(YNetwork[i][0]))] += 1
+            if(round(YArray[i][0]) == round(YNetwork[i][0])):
+                Correct += 1
+            else:
+                Wrong += 1
+                
+        print(confusion)
+        print("Correct Percentage: ",Correct*100/(Wrong+Correct))
+        print("Wrong Percentage: ",Wrong*100/(Wrong+Correct))
+            
 
+# Combines the output of two neural Networks so that they can serve as input 
+# Into a third
 def CombineOutput(a,b):
     EndInput = []
     EndInput.append((np.array(a).T)[0])
     EndInput.append((np.array(b).T)[0])
     return np.array(EndInput).T
     
+# Function takes in the rank network, the suit network and the end network
+# and propagates the input data through the entire network.
+# It then returns the loss of the network
 def PropThroughRankAndSuit(inputA,inputB,RankNetwork,SuitNetwork,EndNetwork):
     ARank, ASuit = getRankAndSuit(inputA)
     
@@ -317,6 +376,7 @@ def PropThroughRankAndSuit(inputA,inputB,RankNetwork,SuitNetwork,EndNetwork):
     EndNetwork.feedForward()
     #EndNetwork.printOutput()
     EndNetwork.printError()
+    EndNetwork.printConfusionMatrix()
     
 # For the ones with suit it is either the same or nothing. There are 3 of these types.
 # Theres the flush, straight flush and the royal flush
@@ -326,37 +386,50 @@ def PropThroughRankAndSuit(inputA,inputB,RankNetwork,SuitNetwork,EndNetwork):
 # There's enough layers to figure out the complexity of poker hands but not too
     # much that it will overfit to the training data
 
-TrainingIterations = 10000
+
+
+# Gets equal amounts of each unique output as data
 levelTrainAtt, levelTrainRes = Level_data(trainAtt,trainRes)
+np.append(levelTrainAtt,trainAtt[50:2000])
+np.append(levelTrainRes,trainRes[50:2000])
+"""
+# Extracts the rank and the suit
 trainRank, trainSuit = getRankAndSuit(levelTrainAtt)
 
-
-RankShape = [5,8,6,4,1]
+# Loss does not get better after 10 000 iterations
+TrainingIterations = 20000
+RankShape = [5,15,10,15,8,1]
 NNRank = NeuralNetwork(trainSuit,levelTrainRes,RankShape)
-NNRank.train(TrainingIterations)
+NNRank.train(TrainingIterations, 1.2)
 NNRank.printError()
+NNRank.printConfusionMatrix()
 
+TrainingIterations = 10000
 SuitShape = [5,8,6,4,1]
 NNSuit = NeuralNetwork(trainRank,levelTrainRes,SuitShape)
-NNSuit.train(TrainingIterations)
+NNSuit.train(TrainingIterations, 1)
 NNSuit.printError()
+NNSuit.printConfusionMatrix()
 
-EndShape = [2,4,4,1]
+TrainingIterations = 50000
+EndShape = [2,8,4,8,4,8,4,5,1]
 NNEnd = NeuralNetwork(CombineOutput(NNRank.feedForward(),NNSuit.feedForward()),levelTrainRes,EndShape)
-NNEnd.train(TrainingIterations)
+NNEnd.train(TrainingIterations, 0.02)
 
-PropThroughRankAndSuit(testAtt[:400],testRes[:400],NNRank,NNSuit,NNEnd)
+PropThroughRankAndSuit(testAtt,testRes,NNRank,NNSuit,NNEnd)
 
 
 """
+TrainingIterations = 1000
 NetworkShape = [10, 8, 6, 4, 1]
-NN = NeuralNetwork(levelTrainAtt,levelTrainRes,NetworkShape)
-NN.train(TrainingIterations)
+NN = NeuralNetwork(trainAtt,trainRes,NetworkShape)
+NN.train(TrainingIterations, 1)
 NN.printError()
-NN.loadInput(testAtt[:40],testRes[:40])
+NN.loadInput(testAtt,testRes)
 NN.printError()
+NN.printConfusionMatrix()
 
-"""
+
 
 
 
