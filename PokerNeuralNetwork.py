@@ -43,16 +43,18 @@ Numerical (1-13) representing (Ace, 2, 3, ... , Queen, King)
 11) CLASS "Poker Hand"
 Ordinal (0-9)
 
-0: Nothing in hand; not a recognized poker hand
-1: One pair; one pair of equal ranks within five cards
-2: Two pairs; two pairs of equal ranks within five cards
-3: Three of a kind; three equal ranks within five cards
-4: Straight; five cards, sequentially ranked with no gaps
-5: Flush; five cards with the same suit
-6: Full house; pair + different rank three of a kind
-7: Four of a kind; four equal ranks within five cards
-8: Straight flush; straight + flush
-9: Royal flush; {Ace, King, Queen, Jack, Ten} + flush
+0: Nothing in hand; not a recognized poker hand                      Rank
+1: One pair; one pair of equal ranks within five cards               Rank
+2: Two pairs; two pairs of equal ranks within five cards             Rank
+3: Three of a kind; three equal ranks within five cards              Rank
+4: Straight; five cards, sequentially ranked with no gaps            Rank
+5: Flush; five cards with the same suit                              Suit
+6: Full house; pair + different rank three of a kind                 Rank
+7: Four of a kind; four equal ranks within five cards                Rank
+8: Straight flush; straight + flush                                  Rank + Suit
+9: Royal flush; {Ace, King, Queen, Jack, Ten} + flush                Specific + Suit
+
+
 
 The order of cards is important, which is why there
      are 480 possible Royal Flush hands as compared to 4 (one for each
@@ -127,7 +129,6 @@ Number of Attributes: 10 predictive attributes, 1 goal attribute
 """
 
 import numpy as np
-import math
 import re #regex import that allows string splitting via multiple delimeters to get rid of \n
 """
 We need to load in the data from the .data files.
@@ -182,5 +183,181 @@ testRes = splitTestData[:, 10:]
 print("The training attribute set has ", trainAtt.shape[0], "data points with ", trainAtt.shape[1], "attributes")
 print("The training result set has ", trainRes.shape[0], "data points with ", trainRes.shape[1], "attribute")
 
-#TODO: make a neural network tree
-#TODO: make a confusion matrix
+def getRankAndSuit(arr):
+    arr2 = arr.T
+    Rank = []
+    Suit = []
+    for i in range(len(arr2)):
+        if(i%2==0):
+            Suit.append(arr2[i])
+        else:
+            Rank.append(arr2[i])
+    return np.array(Rank).T,np.array(Suit).T
+
+def Level_data(a,b):
+    limit = 5
+    limitArr = [0,0,0,0,0,0,0,0,0,0]
+    newA = []
+    newB = []
+    temp = -1
+    for i in range(len(b)):
+        temp = -1
+        for k in range(10):
+            if(b[i] == [k] and limitArr[k] <limit):
+                temp=k
+        if(temp!=-1):
+            limitArr[temp]+=1
+            newA.append(a[i])
+            newB.append(b[i])
+    return np.array(newA), np.array(newB)
+
+
+class NeuralNetwork(object):
+    def __init__(self, x, y, shape):
+        self.Xm = np.amax(x,axis=0)
+        self.Ym = np.amax(y,axis=0)
+        self.X = x/self.Xm
+        self.Y = y/self.Ym
+        
+        self.HiddenLayers = len(shape) - 1 
+        # Weights
+        self.Weights = []
+        for i in range(self.HiddenLayers):
+            self.Weights.append(np.random.randn(shape[i], shape[i+1]))
+        
+    def feedForward(self):
+        self.z = []
+        for i in range(self.HiddenLayers):
+            if(i==0):
+                self.z.append(self.sigmoid(np.dot(self.X, self.Weights[i])))
+            else:
+                self.z.append(self.sigmoid(np.dot(self.z[i-1], self.Weights[i])))
+        return self.z[len(self.z)-1]
+        
+    def sigmoid(self, s, deriv = False):
+        if(deriv == True):
+            return s*(1-s)
+        return 1/(1+np.exp(-s))
+    
+    def backward(self):
+        self.error = []
+        self.delta = []
+        for i in range(self.HiddenLayers):
+            if(i==0):
+                self.error.append(self.Y - self.z[self.HiddenLayers-i-1])
+            else:
+                self.error.append( self.delta[i-1].dot(self.Weights[self.HiddenLayers-i].T))    
+            self.delta.append(self.error[i] * self.sigmoid(self.z[self.HiddenLayers-i-1], deriv = True))
+        
+        for i in range(self.HiddenLayers):
+            if(i==0):
+                self.Weights[i] += self.X.T.dot(self.delta[self.HiddenLayers-i-1])
+            else:
+                self.Weights[i] += self.z[i-1].T.dot(self.delta[self.HiddenLayers-i-1])
+        
+    def train(self,loops):
+        p = 0
+        for i in range(loops):
+            if(round(i*100/loops)!=p):
+                p = round(i*100/loops)
+                print(p,"%")
+            out = self.feedForward()
+            self.backward()
+    
+    def getYArray(self):
+        return self.Y*self.Ym
+    
+    def getXArray(self):
+        return self.X*self.Xm
+    
+    def getNetworkYArray(self):
+        return self.feedForward()*self.Ym
+    
+    def getWeights(self):
+        return self.Weights
+    
+    def loadWeights(self,val):
+        self.Weights = val
+        
+    def loadInput(self, xInput, yInput):
+        self.Xm = np.amax(xInput,axis=0)
+        self.Ym = np.amax(yInput,axis=0)
+        self.X = xInput/self.Xm
+        self.Y = yInput/self.Ym
+        
+    def printOutput(self):
+        arrY = self.getYArray()
+        arrYAns = self.getNetworkYArray()
+        arrDiff = arrY - arrYAns
+        for i in range(len(arrY)):
+            print(str(arrY[i])," - ",str(np.round(arrYAns[i]))," = ", str(np.round(arrDiff[i])))
+            
+    def printError(self):
+       arrDiff = self.getYArray() - self.getNetworkYArray()
+       print("Loss: ",np.mean(np.square(arrDiff)),'\n')
+
+def CombineOutput(a,b):
+    EndInput = []
+    EndInput.append((np.array(a).T)[0])
+    EndInput.append((np.array(b).T)[0])
+    return np.array(EndInput).T
+    
+def PropThroughRankAndSuit(inputA,inputB,RankNetwork,SuitNetwork,EndNetwork):
+    ARank, ASuit = getRankAndSuit(inputA)
+    
+    RankNetwork.loadInput(ARank,inputB)
+    RankOut = RankNetwork.feedForward()
+    
+    SuitNetwork.loadInput(ASuit,inputB)
+    SuitOut = SuitNetwork.feedForward()
+    
+    EndInput = CombineOutput(RankOut,SuitOut)
+    
+    EndNetwork.loadInput(EndInput,inputB)
+    EndNetwork.feedForward()
+    #EndNetwork.printOutput()
+    EndNetwork.printError()
+    
+# For the ones with suit it is either the same or nothing. There are 3 of these types.
+# Theres the flush, straight flush and the royal flush
+
+# It would be best to seperate these two
+
+# There's enough layers to figure out the complexity of poker hands but not too
+    # much that it will overfit to the training data
+
+TrainingIterations = 10000
+levelTrainAtt, levelTrainRes = Level_data(trainAtt,trainRes)
+trainRank, trainSuit = getRankAndSuit(levelTrainAtt)
+
+
+RankShape = [5,8,6,4,1]
+NNRank = NeuralNetwork(trainSuit,levelTrainRes,RankShape)
+NNRank.train(TrainingIterations)
+NNRank.printError()
+
+SuitShape = [5,8,6,4,1]
+NNSuit = NeuralNetwork(trainRank,levelTrainRes,SuitShape)
+NNSuit.train(TrainingIterations)
+NNSuit.printError()
+
+EndShape = [2,4,4,1]
+NNEnd = NeuralNetwork(CombineOutput(NNRank.feedForward(),NNSuit.feedForward()),levelTrainRes,EndShape)
+NNEnd.train(TrainingIterations)
+
+PropThroughRankAndSuit(testAtt[:400],testRes[:400],NNRank,NNSuit,NNEnd)
+
+
+"""
+NetworkShape = [10, 8, 6, 4, 1]
+NN = NeuralNetwork(levelTrainAtt,levelTrainRes,NetworkShape)
+NN.train(TrainingIterations)
+NN.printError()
+NN.loadInput(testAtt[:40],testRes[:40])
+NN.printError()
+
+"""
+
+
+
+
