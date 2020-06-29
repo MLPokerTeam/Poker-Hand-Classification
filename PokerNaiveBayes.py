@@ -393,13 +393,12 @@ hands_and_outcomes = hands_and_outcomes.reshape(2500000,1)
 unique4, counts4 = np.unique(hands_and_outcomes,return_counts=True)
 
 sum = 0.0
-for g in range(10):
+for g in range(500000):
 
-    print(g)
     res = naive_bayes(priors,testing_data,g)
     temp =  hands_and_outcomes[g][0].split(",")
     if res == temp[1]:
        sum = sum + 1.0
 
-accuracy = (sum / 10)*100
+accuracy = (sum / 500000)*100
 print("The reported accuracy is {x}%".format(x = accuracy))
