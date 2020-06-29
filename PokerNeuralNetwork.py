@@ -412,9 +412,9 @@ NNSuit.printError()
 NNSuit.printConfusionMatrix()
 
 TrainingIterations = 50000
-EndShape = [2,8,4,8,4,8,4,5,1]
+EndShape = [2,16,8,4,1]
 NNEnd = NeuralNetwork(CombineOutput(NNRank.feedForward(),NNSuit.feedForward()),levelTrainRes,EndShape)
-NNEnd.train(TrainingIterations, 0.02)
+NNEnd.train(TrainingIterations, 1)
 
 PropThroughRankAndSuit(testAtt,testRes,NNRank,NNSuit,NNEnd)
 
@@ -428,9 +428,3 @@ NN.printError()
 NN.loadInput(testAtt,testRes)
 NN.printError()
 NN.printConfusionMatrix()
-
-
-
-
-
-
